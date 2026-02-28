@@ -22,6 +22,8 @@ env/
 # Output
 output/*.pptx
 output/temp/
+output/config.yaml
+output/log.txt
 
 # OS
 .DS_Store
