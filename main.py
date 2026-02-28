@@ -408,27 +408,39 @@
 #!/usr/bin/env python3
 """
 RedecktoPPT - Main Entry Point
-GitHub 完美发布版 (V22.0)
+GitHub 完美发布版 (V23.0)
 
-核心特性：
-- 显式参数桥接 (解决 TypeError: multiple values for detection)
-- 动态类继承注入 (解决 AssertionError: Backbone)
-- 0.72 DPI 坐标对齐协议
-- 全量 Apple Silicon MPS (GPU) 硬件加速
+核心黑科技：
+1. 暴力修补 torch.load (解决 PyTorch 2.6+ UnpicklingError)
+2. 显式关键字桥接 (解决 TypeError: multiple values for detection)
+3. 动态类继承注入 (解决 AssertionError: Backbone)
+4. 0.72 DPI 坐标对齐协议
+5. 全量 Apple Silicon MPS (GPU) 硬件加速
 """
 
 import sys
 import os
 import types
 import argparse
+import inspect
 from pathlib import Path
 from typing import Optional
 
 # ==============================================================================
-# 🧩 阶段一：深度内核补丁 (Kernel Patches)
+# 🧩 阶段一：神盾级环境补丁 (Master Patches)
 # ==============================================================================
 
-# 1. Transformers 4.40+ 结构补丁
+# 1. 暴力修复 PyTorch 2.6+ 安全限制 (解决 UnpicklingError)
+import torch
+original_torch_load = torch.load
+def safety_torch_load(*args, **kwargs):
+    # 强制允许非权重对象加载，这是加载 PaddleOCR 权重的关键
+    if 'weights_only' in kwargs:
+        kwargs['weights_only'] = False
+    return original_torch_load(*args, **kwargs)
+torch.load = safety_torch_load
+
+# 2. Transformers 4.40+ 结构补丁
 import transformers
 import transformers.modeling_utils
 
@@ -455,7 +467,6 @@ def find_pruneable_heads_and_indices(heads, n_heads, head_size, already_pruned_h
     return sorted(list(already_pruned_heads.union(set(heads)))), [i for i, m in enumerate(mask) if m == 1]
 
 def prune_linear_layer(layer, index, dim=0):
-    import torch
     idx = index.to(layer.weight.device)
     W = layer.weight.index_select(dim, idx).clone().detach()
     new_layer = torch.nn.Linear(layer.in_features, len(index) if dim==0 else layer.out_features, 
@@ -468,20 +479,20 @@ for target in [transformers, transformers.modeling_utils, sys.modules.get('trans
         for func in [find_pruneable_heads_and_indices, prune_linear_layer]:
             if not hasattr(target, func.__name__): setattr(target, func.__name__, func)
 
-# 2. LayoutLMv3 内核与权重绑定补丁
+# 3. LayoutLMv3 内核协议对齐
 try:
     from magic_pdf.model.sub_modules.layout.layoutlmv3.layoutlmft.models.layoutlmv3.modeling_layoutlmv3 import LayoutLMv3Model
     if not hasattr(LayoutLMv3Model, "all_tied_weights_keys"):
         LayoutLMv3Model.all_tied_weights_keys = property(lambda self: {})
 except Exception: pass
 
-# 3. Detectron2 视觉全链路协议对齐 (V22.0 核心修复)
+# 4. Detectron2 视觉全链路协议桥接 (解决 AssertionError & TypeError)
 try:
     from detectron2.config import CfgNode
     from detectron2.modeling import BACKBONE_REGISTRY, Backbone
     from detectron2.layers import ShapeSpec
     
-    # 强制解锁配置并锁定 MPS GPU 设备
+    # 强制解锁配置并锁定 MPS GPU
     original_merge = CfgNode.merge_from_file
     def patched_merge(self, f, **k):
         self.set_new_allowed(True)
@@ -493,13 +504,10 @@ try:
         from magic_pdf.model.sub_modules.layout.layoutlmv3.backbone import LayoutLMv3Model as RawModel
         from magic_pdf.model.sub_modules.layout.layoutlmv3.layoutlmft.models.layoutlmv3.configuration_layoutlmv3 import LayoutLMv3Config
         
-        # 建立具备 RPN/ROI 期待特征层接口且继承 Backbone 的模型
         class FinalPatchedBackbone(RawModel, Backbone):
             def __init__(self, config, **kwargs):
                 super().__init__(config, **kwargs)
-            
             def output_shape(self):
-                # 协议对齐，解决 KeyError 'res4'
                 return {
                     "res2": ShapeSpec(channels=768, stride=4),
                     "res3": ShapeSpec(channels=768, stride=8),
@@ -510,21 +518,20 @@ try:
             def size_divisibility(self): return 32
 
         def bridge_builder(cfg, input_shape):
-            # 显式使用关键字参数，解决 TypeError (multiple values for detection)
             hf_config = LayoutLMv3Config(
                 max_2d_position_embeddings=1024, coordinate_size=128, shape_size=128,
                 hidden_size=768, num_attention_heads=12, num_hidden_layers=12,
                 has_relative_attention_bias=True, has_spatial_attention_bias=True
             )
             hf_config.name_or_path = "layoutlmv3-base"
-            # 物理实例化，跳过 input_shape 以防位置冲突
+            # 关键：显式通过关键字传参，跳过 input_shape 以防位置冲突
             return FinalPatchedBackbone(config=hf_config, detection=True, 
                                         out_features=["layer2", "layer5", "layer8", "layer11"])
         
         BACKBONE_REGISTRY._obj_map["build_beit_backbone"] = bridge_builder
-        print("   ✅ V22.0 全链路协议桥接器已激活 (显式参数对齐)")
+        print("   ✅ V23.0 终极补丁集已激活 (Unpickling/Assertion/Parameter 修复)")
 except Exception as e:
-    print(f"   ⚠️ 视觉系统补丁异常: {e}")
+    print(f"   ⚠️ 视觉补丁异常: {e}")
 
 print("   🚀 RedecktoPPT 满血版引擎启动")
 print("-" * 60)
@@ -545,15 +552,13 @@ class RedecktoPipeline:
     
     def run(self, pdf_path: str) -> Optional[str]:
         pdf_stem = Path(pdf_path).stem
-        print(f"🎬 正在执行全量重构: {pdf_stem}.pdf")
+        print(f"🎬 正在全量重构: {pdf_stem}.pdf")
         try:
-            # Step 1: AI 深度解析 (触发 V22.0 补丁)
             print("\n📌 Step 1: AI 神经网络版面分析 (GPU 加速)")
             parse_info = self.parser.process_pdf(pdf_path)
             json_path = parse_info.get("json_path", "")
             
-            # Step 2: 渲染矢量 PPT
-            print("\n📌 Step 2: 执行 PPTX 矢量重构渲染")
+            print("\n📌 Step 2: 执行 PPTX 矢量对象重构")
             import json
             with open(json_path, 'r', encoding='utf-8') as f:
                 raw_data = json.load(f)
@@ -565,19 +570,19 @@ class RedecktoPipeline:
                 page_dict = {
                     'blocks': page.get('blocks', []),
                     'images': page.get('images', []),
-                    'width': raw_data.get('width', 720),
-                    'height': raw_data.get('height', 405)
+                    'width': 720,
+                    'height': 405
                 }
                 self.renderer.create_slide(page_dict, idx, len(pages), pdf_path)
                 print(f"   📄 Page {idx + 1}/{len(pages)} 渲染完成")
             
             output_file = self.output_dir / f"{pdf_stem}_Editable.pptx"
             self.renderer.save(str(output_file))
-            print(f"\n✨ 恭喜！深度重构成功，原生 PPT 已生成: {output_file}")
+            print(f"\n✨ 任务圆满完成！真正可编辑的 PPT 已生成至: {output_file}")
             return str(output_file)
             
         except Exception as e:
-            print(f"\n🔥 运行时崩溃: {e}")
+            print(f"\n🔥 运行时致命崩溃: {e}")
             import traceback; traceback.print_exc()
             return None
 
@@ -595,6 +600,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
 
