@@ -404,11 +404,17 @@
 #     main()
 
 
+
 #!/usr/bin/env python3
 """
 RedecktoPPT - Main Entry Point
-首席架构师终极适配版 (V20.0)
-修复：KeyError 'res4' (ShapeSpec 映射) & 全链路视觉特征闭环
+GitHub 完美发布版 (V22.0)
+
+核心特性：
+- 显式参数桥接 (解决 TypeError: multiple values for detection)
+- 动态类继承注入 (解决 AssertionError: Backbone)
+- 0.72 DPI 坐标对齐协议
+- 全量 Apple Silicon MPS (GPU) 硬件加速
 """
 
 import sys
@@ -419,10 +425,10 @@ from pathlib import Path
 from typing import Optional
 
 # ==============================================================================
-# 🧩 核心补丁块 (V20.0：视觉特征层语义对齐)
+# 🧩 阶段一：深度内核补丁 (Kernel Patches)
 # ==============================================================================
 
-# 1. Transformers 4.40+ 接口兼容
+# 1. Transformers 4.40+ 结构补丁
 import transformers
 import transformers.modeling_utils
 
@@ -452,7 +458,8 @@ def prune_linear_layer(layer, index, dim=0):
     import torch
     idx = index.to(layer.weight.device)
     W = layer.weight.index_select(dim, idx).clone().detach()
-    new_layer = torch.nn.Linear(layer.in_features, len(index) if dim==0 else layer.out_features, bias=layer.bias is not None).to(layer.weight.device)
+    new_layer = torch.nn.Linear(layer.in_features, len(index) if dim==0 else layer.out_features, 
+                                bias=layer.bias is not None).to(layer.weight.device)
     new_layer.weight.copy_(W.contiguous())
     return new_layer
 
@@ -461,20 +468,20 @@ for target in [transformers, transformers.modeling_utils, sys.modules.get('trans
         for func in [find_pruneable_heads_and_indices, prune_linear_layer]:
             if not hasattr(target, func.__name__): setattr(target, func.__name__, func)
 
-# 2. LayoutLMv3 内核深度修复
+# 2. LayoutLMv3 内核与权重绑定补丁
 try:
     from magic_pdf.model.sub_modules.layout.layoutlmv3.layoutlmft.models.layoutlmv3.modeling_layoutlmv3 import LayoutLMv3Model
     if not hasattr(LayoutLMv3Model, "all_tied_weights_keys"):
         LayoutLMv3Model.all_tied_weights_keys = property(lambda self: {})
 except Exception: pass
 
-# 3. Detectron2 视觉特征层全链路闭环 (V20.0 核心修复：解决 KeyError 'res4')
+# 3. Detectron2 视觉全链路协议对齐 (V22.0 核心修复)
 try:
     from detectron2.config import CfgNode
     from detectron2.modeling import BACKBONE_REGISTRY, Backbone
     from detectron2.layers import ShapeSpec
     
-    # 锁定设备并解锁配置
+    # 强制解锁配置并锁定 MPS GPU 设备
     original_merge = CfgNode.merge_from_file
     def patched_merge(self, f, **k):
         self.set_new_allowed(True)
@@ -486,48 +493,44 @@ try:
         from magic_pdf.model.sub_modules.layout.layoutlmv3.backbone import LayoutLMv3Model as RawModel
         from magic_pdf.model.sub_modules.layout.layoutlmv3.layoutlmft.models.layoutlmv3.configuration_layoutlmv3 import LayoutLMv3Config
         
-        # 动态类重构：通过 output_shape 方法将 LayoutLM 层映射为 ResNet 语态
-        class PatchedBackbone(RawModel, Backbone):
-            def __init__(self, config, input_shape=None, **kwargs):
+        # 建立具备 RPN/ROI 期待特征层接口且继承 Backbone 的模型
+        class FinalPatchedBackbone(RawModel, Backbone):
+            def __init__(self, config, **kwargs):
                 super().__init__(config, **kwargs)
-                # 定义 RPN 和 ROIHead 期待的特征层名称
-                self._out_feature_names = ["res2", "res3", "res4", "res5"]
             
             def output_shape(self):
-                # V20.0 绝杀：构建完整的特征图描述符字典
+                # 协议对齐，解决 KeyError 'res4'
                 return {
                     "res2": ShapeSpec(channels=768, stride=4),
                     "res3": ShapeSpec(channels=768, stride=8),
                     "res4": ShapeSpec(channels=768, stride=16),
                     "res5": ShapeSpec(channels=768, stride=32),
                 }
-
             @property
             def size_divisibility(self): return 32
 
-        def build_beit_backbone_bridge(cfg, input_shape):
-            # 将 LayoutLM 的第 3, 6, 9, 12 层映射为视觉特征层
-            internal_layers = ["layer2", "layer5", "layer8", "layer11"]
+        def bridge_builder(cfg, input_shape):
+            # 显式使用关键字参数，解决 TypeError (multiple values for detection)
             hf_config = LayoutLMv3Config(
                 max_2d_position_embeddings=1024, coordinate_size=128, shape_size=128,
                 hidden_size=768, num_attention_heads=12, num_hidden_layers=12,
                 has_relative_attention_bias=True, has_spatial_attention_bias=True
             )
             hf_config.name_or_path = "layoutlmv3-base"
-            # 物理实例化
-            return PatchedBackbone(hf_config, input_shape, detection=True, out_features=internal_layers)
+            # 物理实例化，跳过 input_shape 以防位置冲突
+            return FinalPatchedBackbone(config=hf_config, detection=True, 
+                                        out_features=["layer2", "layer5", "layer8", "layer11"])
         
-        BACKBONE_REGISTRY._obj_map["build_beit_backbone"] = build_beit_backbone_bridge
-        print("   ✅ 成功：视觉特征层通信协议已建立 (res2-res5 mapping)")
-
+        BACKBONE_REGISTRY._obj_map["build_beit_backbone"] = bridge_builder
+        print("   ✅ V22.0 全链路协议桥接器已激活 (显式参数对齐)")
 except Exception as e:
     print(f"   ⚠️ 视觉系统补丁异常: {e}")
 
-print("   🚀 RedecktoPPT 满血版引擎 (V20.0) 启动")
+print("   🚀 RedecktoPPT 满血版引擎启动")
 print("-" * 60)
 
 # ==============================================================================
-# 🏗️ 业务渲染流程 (RedecktoPipeline)
+# 🏗️ 阶段二：业务逻辑 (RedecktoPipeline)
 # ==============================================================================
 
 from core.miner_u_wrapper import MinerUWrapper
@@ -540,16 +543,17 @@ class RedecktoPipeline:
         self.parser = MinerUWrapper(output_base_dir=str(self.output_dir / "temp"))
         self.renderer = PptxRenderer(aspect_ratio=aspect_ratio)
     
-    def run(self, pdf_path: str, force_fallback: bool = False) -> Optional[str]:
+    def run(self, pdf_path: str) -> Optional[str]:
         pdf_stem = Path(pdf_path).stem
-        print(f"🎬 正在重构 PDF: {pdf_stem}")
+        print(f"🎬 正在执行全量重构: {pdf_stem}.pdf")
         try:
-            print("\n📌 Step 1: 启动高精度 AI 解析 (MPS 加速)")
-            # 启动深度解析引擎
-            parse_info = self.parser.process_pdf(pdf_path, force_fallback=force_fallback)
+            # Step 1: AI 深度解析 (触发 V22.0 补丁)
+            print("\n📌 Step 1: AI 神经网络版面分析 (GPU 加速)")
+            parse_info = self.parser.process_pdf(pdf_path)
             json_path = parse_info.get("json_path", "")
             
-            print("\n📌 Step 2: 执行 PPTX 物理重构")
+            # Step 2: 渲染矢量 PPT
+            print("\n📌 Step 2: 执行 PPTX 矢量重构渲染")
             import json
             with open(json_path, 'r', encoding='utf-8') as f:
                 raw_data = json.load(f)
@@ -557,6 +561,7 @@ class RedecktoPipeline:
             self.renderer.set_pdf_source(pdf_path)
             pages = raw_data.get('pages', [])
             for idx, page in enumerate(pages):
+                # 坐标系对齐：PPT 720x405 归一化空间
                 page_dict = {
                     'blocks': page.get('blocks', []),
                     'images': page.get('images', []),
@@ -564,11 +569,11 @@ class RedecktoPipeline:
                     'height': raw_data.get('height', 405)
                 }
                 self.renderer.create_slide(page_dict, idx, len(pages), pdf_path)
-                print(f"   📄 Page {idx + 1}/{len(pages)} 渲染成功")
+                print(f"   📄 Page {idx + 1}/{len(pages)} 渲染完成")
             
             output_file = self.output_dir / f"{pdf_stem}_Editable.pptx"
             self.renderer.save(str(output_file))
-            print(f"\n✨ 任务圆满完成！可编辑 PPT 已生成: {output_file}")
+            print(f"\n✨ 恭喜！深度重构成功，原生 PPT 已生成: {output_file}")
             return str(output_file)
             
         except Exception as e:
@@ -577,13 +582,19 @@ class RedecktoPipeline:
             return None
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('input')
+    parser = argparse.ArgumentParser(description="RedecktoPPT: 原生矢量 PPT 转换引擎")
+    parser.add_argument('input', help='PDF 文件路径')
     args = parser.parse_args()
+    
+    if not os.path.exists(args.input):
+        print(f"❌ 找不到文件: {args.input}")
+        sys.exit(1)
+        
     pipeline = RedecktoPipeline()
     pipeline.run(args.input)
 
 if __name__ == "__main__":
     main()
+
 
 
