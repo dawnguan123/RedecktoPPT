@@ -365,6 +365,28 @@ def main():
         print(f"❌ 文件不存在: {pdf_path}")
         sys.exit(1)
     
+    # PPTX 转 PDF
+    is_pptx = pdf_path.lower().endswith('.pptx')
+    if is_pptx:
+        print(f"🔄 检测到 PPTX，先转换为 PDF...")
+        temp_pdf = f"/tmp/converted_{os.path.basename(pdf_path)}.pdf"
+        
+        # 调用 pptx_to_pdf.py
+        import subprocess
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        result = subprocess.run(
+            [sys.executable, os.path.join(script_dir, 'pptx_to_pdf.py'), 
+             pdf_path, temp_pdf],
+            capture_output=True, text=True
+        )
+        
+        if result.returncode != 0 or not os.path.exists(temp_pdf):
+            print(f"❌ PPTX 转换失败: {result.stderr}")
+            sys.exit(1)
+        
+        pdf_path = temp_pdf
+        print(f"   ✅ PPTX 转换为 PDF 成功")
+    
     print(f"🎬 开始转换: {Path(pdf_path).name}")
     print(f"   底部检测高度: {bottom_height}px")
     print("-" * 40)
