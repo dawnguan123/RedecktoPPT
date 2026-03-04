@@ -10,8 +10,11 @@ pip install -r requirements.txt
 
 ## 使用
 
+支持 PDF 和 PPTX 两种输入格式：
+
 ```bash
 python simple.py 输入.pdf 输出.pptx [底部检测高度]
+python simple.py 输入.pptx 输出.pptx [底部检测高度]
 ```
 
 - **底部检测高度**：可选，默认 200px，用于检测水印/Logo 区域
@@ -19,6 +22,7 @@ python simple.py 输入.pdf 输出.pptx [底部检测高度]
 ```bash
 # 示例
 python simple.py input.pdf output.pptx
+python simple.py input.pptx output.pptx
 python simple.py input.pdf output.pptx 150  # 检测底部 150px
 ```
 
