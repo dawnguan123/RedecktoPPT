@@ -49,7 +49,8 @@ def detect_text_boxes(img: Image.Image, bottom_height: int = 200) -> list:
             
             # 只覆盖明确在水印区域的文字
             if y > watermark_start:
-                boxes.append((x, y, x + w, y + h))
+                # 添加来源标记 'ocr'
+                boxes.append((x, y, x + w, y + h, 'ocr'))
     
     return boxes
 
@@ -61,9 +62,9 @@ def detect_logo_precise(img: Image.Image, bottom_height: int = 200) -> list:
     
     y_start = height - bottom_height
     
-    # 右下角区域
-    corner_w = min(250, width // 3)
-    corner_h = min(120, bottom_height)
+    # 右下角区域 - 进一步扩大检测范围
+    corner_w = min(500, int(width * 0.45))
+    corner_h = min(150, bottom_height + 50)
     
     corner_region = np.array(img.crop((
         width - corner_w, 
@@ -82,12 +83,16 @@ def detect_logo_precise(img: Image.Image, bottom_height: int = 200) -> list:
         area = cv2.contourArea(cnt)
         if area > 30:  # 更低的阈值
             x, y, w, h = cv2.boundingRect(cnt)
-            boxes.append((
-                width - corner_w + x,
-                height - corner_h + y,
-                width - corner_w + x + w,
-                height - corner_h + y + h
-            ))
+            # 只保留底部附近的
+            box_y1 = height - corner_h + y + h
+            if box_y1 > height - 50:
+                boxes.append((
+                    width - corner_w + x,
+                    height - corner_h + y,
+                    width - corner_w + x + w,
+                    height - corner_h + y + h,
+                    'logo'
+                ))
     
     # 如果检测太少，扩大区域重新检测
     if len(boxes) < 2:
@@ -110,68 +115,111 @@ def detect_logo_precise(img: Image.Image, bottom_height: int = 200) -> list:
             area = cv2.contourArea(cnt)
             if area > 30:
                 x, y, w, h = cv2.boundingRect(cnt)
-                # 只保留右下部分
+                # 只保留右下部分 且 在底部附近
                 if x > larger_w * 0.3:
-                    boxes.append((
-                        width - larger_w + x,
-                        height - larger_h + y,
-                        width - larger_w + x + w,
-                        height - larger_h + y + h
-                    ))
+                    box_y1 = height - larger_h + y + h
+                    if box_y1 > height - 50:
+                        boxes.append((
+                            width - larger_w + x,
+                            height - larger_h + y,
+                            width - larger_w + x + w,
+                            height - larger_h + y + h,
+                            'logo'
+                        ))
     
     return boxes
 
 
-def merge_nearby_boxes(boxes: list, distance_threshold: int = 20) -> list:
-    """只合并距离近的 box"""
+def merge_nearby_boxes(boxes: list, distance_threshold: int = 20, width: int = 0) -> list:
+    """
+    合并 box
+    - Logo 盒子（只有 logo 来源）且在右下角：全部合并
+    - 其他：按距离合并
+    """
     if not boxes:
         return []
     
     boxes = sorted(boxes, key=lambda b: b[0])
     
-    merged = []
-    current_group = [boxes[0]]
+    # 分类：纯 Logo vs 其他
+    pure_logo_boxes = [b for b in boxes if b[4] == 'logo']
+    other_boxes = [b for b in boxes if b[4] != 'logo']
     
-    for i in range(1, len(boxes)):
-        box = boxes[i]
-        prev = current_group[-1]
-        
-        if box[0] - prev[2] < distance_threshold:
-            current_group.append(box)
+    # 处理纯 Logo 盒子：如果都在右下角，合并为一个
+    if pure_logo_boxes and width > 0:
+        # 检查是否都在右下角（x > 60% width）
+        right_boxes = [b for b in pure_logo_boxes if b[0] > width * 0.6]
+        if len(right_boxes) >= len(pure_logo_boxes) * 0.7:  # 70% 以上在右侧
+            # 全部合并，并扩展到边界
+            x0 = min(b[0] for b in pure_logo_boxes)
+            y0 = min(b[1] for b in pure_logo_boxes)
+            x1 = max(b[2] for b in pure_logo_boxes)
+            y1 = max(b[3] for b in pure_logo_boxes)
+            
+            # 如果右边还有空白，扩展到边界
+            if width - x1 < 100:
+                x1 = width
+            
+            merged = [(x0, y0, x1, y1, {'logo'})]
         else:
+            merged = []
+    else:
+        merged = []
+    
+    # 处理其他盒子（按距离合并）
+    if other_boxes:
+        current_group = [other_boxes[0]]
+        for i in range(1, len(other_boxes)):
+            box = other_boxes[i]
+            prev = current_group[-1]
+            
+            if box[0] - prev[2] < distance_threshold:
+                current_group.append(box)
+            else:
+                x0 = min(b[0] for b in current_group)
+                y0 = min(b[1] for b in current_group)
+                x1 = max(b[2] for b in current_group)
+                y1 = max(b[3] for b in current_group)
+                sources = set(b[4] for b in current_group)
+                merged.append((x0, y0, x1, y1, sources))
+                current_group = [box]
+        
+        if current_group:
             x0 = min(b[0] for b in current_group)
             y0 = min(b[1] for b in current_group)
             x1 = max(b[2] for b in current_group)
             y1 = max(b[3] for b in current_group)
-            merged.append((x0, y0, x1, y1))
-            current_group = [box]
-    
-    if current_group:
-        x0 = min(b[0] for b in current_group)
-        y0 = min(b[1] for b in current_group)
-        x1 = max(b[2] for b in current_group)
-        y1 = max(b[3] for b in current_group)
-        merged.append((x0, y0, x1, y1))
+            sources = set(b[4] for b in current_group)
+            merged.append((x0, y0, x1, y1, sources))
     
     return merged
 
 
 def expand_boxes_to_cover_line(boxes: list, width: int, height: int, bottom_height: int = 200) -> list:
-    """如果检测区域太小，扩展到覆盖整行（只在底部区域）"""
+    """
+    扩展策略：
+    - 只有纯 OCR 检测（无 Logo）才扩展
+    - 如果合并了 Logo 来源，不扩展
+    """
     expanded = []
     
     # 底部区域边界
     bottom_start = height - bottom_height
+    watermark_zone = height - 30  # 水印区域
     
     for box in boxes:
-        x0, y0, x1, y1 = box
+        x0, y0, x1, y1, sources = box
         box_width = x1 - x0
         
-        # 只在底部区域扩展
+        # 只在底部区域考虑扩展
         if y0 > bottom_start:
-            if box_width < width * 0.25:
-                # 扩展到整行
-                expanded.append((0, y0, width, y1))
+            has_ocr = 'ocr' in sources
+            has_logo = 'logo' in sources
+            in_watermark_zone = y0 > watermark_zone
+            
+            # 只有纯 OCR（无 Logo）且在水印区域才扩展
+            if has_ocr and not has_logo and in_watermark_zone and box_width < width * 0.25:
+                expanded.append((0, y0, width, y1, sources))
             else:
                 expanded.append(box)
         else:
@@ -181,12 +229,12 @@ def expand_boxes_to_cover_line(boxes: list, width: int, height: int, bottom_heig
 
 
 def fill_boxes(img: Image.Image, boxes: list) -> None:
-    """用周围颜色填充"""
+    """用周围颜色填充 - 从 Logo 下方采样"""
     draw = ImageDraw.Draw(img)
     width, height = img.size
     
     for box in boxes:
-        x0, y0, x1, y1 = box
+        x0, y0, x1, y1, sources = box
         
         # 扩展边距
         margin = 5
@@ -195,16 +243,19 @@ def fill_boxes(img: Image.Image, boxes: list) -> None:
         x1 = min(width, x1 + margin)
         y1 = min(height, y1 + margin)
         
-        # 采样
+        # 优先从 Logo 下方采样
         samples = []
         
-        if y0 > 15:
+        # 下方采样（Logo 在底部，下方更可靠）
+        if y1 < height - 10:
+            for dx in range(x0, min(x1, width), max(1, (x1-x0)//5)):
+                if y1 + 5 < height:
+                    samples.append(img.getpixel((dx, y1 + 5)))
+        
+        # 如果下方采样不够，用上方
+        if len(samples) < 3 and y0 > 10:
             for dx in range(x0, min(x1, width), max(1, (x1-x0)//5)):
                 samples.append(img.getpixel((dx, y0 - 5)))
-        
-        if y1 < height - 15:
-            for dx in range(x0, min(x1, width), max(1, (x1-x0)//5)):
-                samples.append(img.getpixel((dx, y1 + 5)))
         
         if samples:
             avg = np.mean(samples, axis=0)
@@ -242,7 +293,7 @@ def process_page(pdf_path: str, page_num: int, dpi: int = 150, bottom_height: in
     all_boxes.extend(logo_boxes)
     
     # 合并
-    boxes = merge_nearby_boxes(all_boxes, distance_threshold=20)
+    boxes = merge_nearby_boxes(all_boxes, distance_threshold=20, width=width)
     print(f"      合并: {len(boxes)} 个")
     
     # 扩展小区域
