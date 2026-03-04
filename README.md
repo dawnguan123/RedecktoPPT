@@ -1,6 +1,6 @@
 # 🚀 RedecktoPPT
 
-将 PDF 转换为 PPT，自动去除水印和 Logo。
+将 PDF/PPTX 转换为 PPT，自动去除水印和 Logo。
 
 ## 安装
 
@@ -38,7 +38,7 @@ pytesseract>=0.3.0
 
 ## 功能
 
-- **PDF 转 PPT**：将 PDF 每页转换为图片，拼接为 PPT
+- **PDF/PPTX 转 PPT**：支持两种输入格式
 - **自动去水印**：检测并去除 NotebookLM 等水印
 - **自动去 Logo**：检测并覆盖底部 Logo
 - **智能填充**：用周围颜色无缝填充覆盖区域
@@ -63,13 +63,23 @@ pytesseract>=0.3.0
 - 优先从 Logo 下方采样
 - 用采样颜色填充覆盖区域
 
+### PPTX 处理流程
+1. 检测到 `.pptx` 后缀
+2. 提取 PPTX 中的图片（解压 ZIP）
+3. 自然排序确保页码正确
+4. 转为 PDF 复用去水印逻辑
+
 ## 适用场景
 
-- NotebookLM 生成的音频总结 PDF
+- NotebookLM 生成的音频总结 PDF/PPTX
 - 带水印/Logo 的导出文档
 - 图片型 PDF（无文字层）
 
 ## 测试通过
 
-- `Data_Synergy.pdf` (5 页) ✅
-- `OpenClaw_Autonomous_Digital_Twins.pdf` (5 页) ✅
+| 文件 | 页数 | 状态 |
+|------|------|------|
+| Data_Synergy.pdf | 5 | ✅ |
+| OpenClaw_Autonomous_Digital_Twins.pdf | 5 | ✅ |
+| Smart_Budgeting_with_Algebra.pptx | 15 | ✅ |
+| Feishu_Digital_Synergy_Blueprint.pptx | 2 | ✅ |
