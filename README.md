@@ -2,9 +2,21 @@
 
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge.svg)](https://redecktoppt.streamlit.app/) 
 ![GitHub stars](https://img.shields.io/github/stars/dawnguan123/redecktoppt?style=social)
+![License](https://img.shields.io/github/license/dawnguan123/redecktoppt)
 ![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)
 
-**RedecktoPPT** 是一款基于 AI 视觉和 OCR 技术的自动化办公辅助工具。它能够一键将带有水印或 Logo 的 PDF/PPTX 文档转换为“干净”的 PPTX 文件，特别针对 NotebookLM 生成的演示文档进行了深度优化。
+**RedecktoPPT** 是一款基于 AI 视觉和 OCR 技术的自动化办公辅助工具。它能够一键将带有水印或 Logo 的 PDF/PPTX 文档转换为“干净”的 PPTX 文件，特别针对 **NotebookLM** 生成的演示文档进行了深度优化。
+
+> **💡 痛点解决**：AI 生成的文档虽然内容精良，但往往带有无法直接修改的水印。本项目通过计算机视觉技术实现自动识别与无缝覆盖填充。
+
+---
+
+## 🖼️ 效果展示
+
+| 处理前 (带有水印) | 处理后 (无缝覆盖) |
+| :--- | :--- |
+| ![Original](https://via.placeholder.com/400x225.png?text=Original+with+Watermark) | ![Processed](https://via.placeholder.com/400x225.png?text=Clean+PPTX+Output) |
+| *注：此处可替换为您实际处理的对比截图* |
 
 ---
 
@@ -20,17 +32,17 @@
 
 ## 🛠️ 技术栈
 
-- **核心引擎**: [PyMuPDF (fitz)](https://github.com/pymupdf/PyMuPDF) —— 用于高效处理 PDF 与图像转换。
-- **图像识别**: [OpenCV (cv2)](https://opencv.org/) & [pytesseract](https://github.com/madmaze/pytesseract) —— 用于特征检测与文字识别。
-- **演示文稿处理**: [python-pptx](https://python-pptx.readthedocs.io/) —— 用于生成最终的 PPTX 文件。
-- **前端框架**: [Streamlit](https://streamlit.io/) —— 驱动 Web 交互界面。
+- **核心引擎**: [PyMuPDF (fitz)](https://github.com/pymupdf/PyMuPDF) —— 高效处理 PDF 渲染与转换。
+- **图像识别**: [OpenCV (cv2)](https://opencv.org/) & [pytesseract](https://github.com/madmaze/pytesseract) —— 驱动特征检测与文字识别。
+- **演示文稿处理**: [python-pptx](https://python-pptx.readthedocs.io/) —— 生成高质量 PPTX。
+- **前端框架**: [Streamlit](https://streamlit.io/) —— 驱动敏捷的 Web 交互。
 
 ---
 
 ## 🚀 快速开始
 
-### 方式一：直接访问 Web 版（最快）
-访问部署在 Streamlit Cloud 上的地址： [https://redecktoppt.streamlit.app/](https://redecktoppt.streamlit.app/)
+### 方式一：直接访问 Web 版（推荐）
+点击徽章进入部署在 Streamlit Cloud 上的地址： [https://redecktoppt.streamlit.app/](https://redecktoppt.streamlit.app/)
 
 ### 方式二：本地运行
 
