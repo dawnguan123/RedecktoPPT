@@ -1,85 +1,40 @@
 # 🚀 RedecktoPPT
 
-将 PDF/PPTX 转换为 PPT，自动去除水印和 Logo。
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge.svg)](https://redecktoppt.streamlit.app/) 
+![GitHub stars](https://img.shields.io/github/stars/dawnguan123/redecktoppt?style=social)
+![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)
 
-## 安装
+**RedecktoPPT** 是一款基于 AI 视觉和 OCR 技术的自动化办公辅助工具。它能够一键将带有水印或 Logo 的 PDF/PPTX 文档转换为“干净”的 PPTX 文件，特别针对 NotebookLM 生成的演示文档进行了深度优化。
 
-```bash
-pip install -r requirements.txt
-```
+---
 
-## 使用
+## 🌟 核心亮点
 
-支持 PDF 和 PPTX 两种输入格式：
+- **智能去水印**：利用 **Tesseract OCR** 精确识别文档底部的文字水印（如“Powered by NotebookLM”等区域）。
+- **Logo 边缘检测**：通过 **OpenCV** 的 Canny 边缘检测算法，精准定位并覆盖文档角落的各种 Logo。
+- **无缝颜色填充**：采用智能采样技术，自动提取覆盖区域周围的颜色进行填充，确保转换后的页面美观自然。
+- **全格式支持**：支持 PDF 和 PPTX 格式输入。对于 PPTX，程序会自动提取图片并重组，确保转换闭环。
+- **Web 端即开即用**：基于 **Streamlit** 构建的图形界面，支持在线上传、参数微调及处理后文件直接下载。
 
-```bash
-python converter.py 输入.pdf 输出.pptx [底部检测高度]
-python converter.py 输入.pptx 输出.pptx [底部检测高度]
-```
+---
 
-- **底部检测高度**：可选，默认 200px，用于检测水印/Logo 区域
+## 🛠️ 技术栈
 
-```bash
-# 示例
-python converter.py input.pdf output.pptx
-python converter.py input.pptx output.pptx
-python converter.py input.pdf output.pptx 150  # 检测底部 150px
-```
+- **核心引擎**: [PyMuPDF (fitz)](https://github.com/pymupdf/PyMuPDF) —— 用于高效处理 PDF 与图像转换。
+- **图像识别**: [OpenCV (cv2)](https://opencv.org/) & [pytesseract](https://github.com/madmaze/pytesseract) —— 用于特征检测与文字识别。
+- **演示文稿处理**: [python-pptx](https://python-pptx.readthedocs.io/) —— 用于生成最终的 PPTX 文件。
+- **前端框架**: [Streamlit](https://streamlit.io/) —— 驱动 Web 交互界面。
 
-## 依赖
+---
 
-```
-pymupdf>=1.23.0
-python-pptx>=0.6.23
-Pillow>=10.0.0
-opencv-python>=4.8.0
-pytesseract>=0.3.0
-```
+## 🚀 快速开始
 
-## 功能
+### 方式一：直接访问 Web 版（最快）
+访问部署在 Streamlit Cloud 上的地址： [https://redecktoppt.streamlit.app/](https://redecktoppt.streamlit.app/)
 
-- **PDF/PPTX 转 PPT**：支持两种输入格式
-- **自动去水印**：检测并去除 NotebookLM 等水印
-- **自动去 Logo**：检测并覆盖底部 Logo
-- **智能填充**：用周围颜色无缝填充覆盖区域
+### 方式二：本地运行
 
-## 技术原理
-
-### 1. OCR 文字检测
-- 使用 pytesseract 检测底部文字
-- 只检测 y > height - 150 的区域（水印区）
-
-### 2. Logo 边缘检测
-- 使用 OpenCV Canny 边缘检测
-- 检测区域：500px x 150px（右下角）
-- 只保留底部附近的检测结果（y1 > height - 50）
-
-### 3. 智能合并
-- 右侧 Logo 盒子全部合并
-- 按距离合并其他检测结果
-- 只有纯 OCR 来源才允许扩展到整行
-
-### 4. 颜色填充
-- 优先从 Logo 下方采样
-- 用采样颜色填充覆盖区域
-
-### PPTX 处理流程
-1. 检测到 `.pptx` 后缀
-2. 提取 PPTX 中的图片（解压 ZIP）
-3. 自然排序确保页码正确
-4. 转为 PDF 复用去水印逻辑
-
-## 适用场景
-
-- NotebookLM 生成的音频总结 PDF/PPTX
-- 带水印/Logo 的导出文档
-- 图片型 PDF（无文字层）
-
-## 测试通过
-
-| 文件 | 页数 | 状态 |
-|------|------|------|
-| Data_Synergy.pdf | 5 | ✅ |
-| OpenClaw_Autonomous_Digital_Twins.pdf | 5 | ✅ |
-| Smart_Budgeting_with_Algebra.pptx | 15 | ✅ |
-| Feishu_Digital_Synergy_Blueprint.pptx | 2 | ✅ |
+1. **克隆仓库**
+   ```bash
+   git clone [https://github.com/dawnguan123/redecktoppt.git](https://github.com/dawnguan123/redecktoppt.git)
+   cd redecktoppt
