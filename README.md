@@ -11,15 +11,6 @@
 
 ---
 
-## 🖼️ 效果展示
-
-| 处理前 (带有水印) | 处理后 (无缝覆盖) |
-| :--- | :--- |
-| ![Original](https://via.placeholder.com/400x225.png?text=Original+with+Watermark) | ![Processed](https://via.placeholder.com/400x225.png?text=Clean+PPTX+Output) |
-| *注：此处可替换为您实际处理的对比截图* |
-
----
-
 ## 🌟 核心亮点
 
 - **智能去水印**：利用 **Tesseract OCR** 精确识别文档底部的文字水印（如“Powered by NotebookLM”等区域）。
@@ -50,3 +41,27 @@
    ```bash
    git clone [https://github.com/dawnguan123/redecktoppt.git](https://github.com/dawnguan123/redecktoppt.git)
    cd redecktoppt
+
+
+---
+
+## 📖 原理解析
+
+RedecktoPPT 不仅仅是简单的遮盖，它通过以下技术路径实现高质量的转换：
+
+- **OCR 精准检测**：算法自动锁定页面底部（默认 200px）的关键区域，利用 **Tesseract OCR** 引擎深度扫描并提取文本坐标，精准识别水印文字。
+- **Logo 视觉探测**：针对右下角高频水印区进行灰度处理与 **Canny 边缘检测**，通过形状特征识别非文本类的复杂 Logo 标识。
+- **智能区域合并**：对邻近的多个检测框执行聚类合并逻辑，有效避免生成细碎的覆盖块，确保输出页面的整洁与一致性。
+- **智能色彩修复**：在待覆盖区域下方进行多点颜色采样，计算中值或均值色彩进行填充，实现水印“隐身”般的自然消失效果。
+
+---
+
+## 🤝 贡献与反馈
+
+开源的力量在于社区协作。如果您在体验过程中遇到了无法去除的顽固水印，或者有更精妙的算法优化方案，热烈欢迎参与项目共建：
+
+- 🛠️ [提交 Issue](https://github.com/dawnguan123/redecktoppt/issues) ：报告 Bug 或分享您的改进想法。
+- 🌿 [发起 Pull Request](https://github.com/dawnguan123/redecktoppt/pulls) ：直接贡献代码，一起完善工具。
+
+**您的支持是我的动力！如果这个项目帮到了您，请不要吝啬点亮右上角的 ⭐️ Star，这对我至关重要！**
+
