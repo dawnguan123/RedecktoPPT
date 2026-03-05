@@ -1,4 +1,9 @@
 # RedecktoPPT 依赖 (简化版)
 
+streamlit
 pymupdf>=1.23.0
 python-pptx>=0.6.23
+Pillow>=10.0.0
+numpy
+pytesseract>=0.3.0
+opencv-python-headless
