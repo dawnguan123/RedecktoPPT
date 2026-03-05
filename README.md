@@ -1,6 +1,6 @@
 # 🚀 RedecktoPPT
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge.svg)](https://redecktoppt.streamlit.app/) 
+[![Streamlit App](https://img.shields.io/badge/Streamlit-App-FF4B4B?style=flat&logo=streamlit)](https://redecktoppt.streamlit.app/)
 ![GitHub stars](https://img.shields.io/github/stars/dawnguan123/redecktoppt?style=social)
 ![License](https://img.shields.io/github/license/dawnguan123/redecktoppt)
 ![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)
@@ -41,7 +41,16 @@
    ```bash
    git clone [https://github.com/dawnguan123/redecktoppt.git](https://github.com/dawnguan123/redecktoppt.git)
    cd redecktoppt
-
+2. **安装系统依赖 (以 Debian/Ubuntu 为例)**
+   ```bash
+   # 必须安装 Tesseract OCR 引擎和 Open GL 库
+   sudo apt-get install tesseract-ocr libgl1
+3. **安装 Python 库**
+   ```bash
+   pip install -r requirements.txt
+4. **启动 Streamlit 界面**
+   ```bash
+   streamlit run app.py   
 
 ---
 
